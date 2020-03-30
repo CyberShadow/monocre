@@ -95,54 +95,55 @@ void learn(string fontPath, string[] renderer, dchar[] chars)
 	auto spec = specs[0];
 
 	// 2. Find renderer limits
-	int maxW, maxH;
-	foreach (axis; 0 .. 2)
+	size_t[2] good = [gridPatternW, gridPatternH], bad = [size_t.max, size_t.max];
 	{
-		stderr.writefln("monocre: Detecting renderer maximum %s...", only("width", "height")[axis]);
-		auto good = only(gridPatternW, 1)[axis];
-		auto maxChars = chars.length * 2 + 1; // max. chars we'll want to put on one axis
-		if (axis)
-		{
-			auto maxWChars = (maxW - 1) / 2; // undo maxChars calculation above
-			maxChars = min(maxChars, (chars.length + maxWChars - 1) / maxWChars);
-		}
-		auto upperLimit = max(good, min(0x7fff / only(spec.w, spec.h)[axis] - 3, maxChars));
-		upperLimit++; // one past, so that the first "next" is at the limit
-		auto bad = upperLimit;
-		while (good + 1 < bad && (bad - good) * 4 > bad)
-		{
-			auto next = bad == upperLimit ? upperLimit - 1 : (good + bad) / 2;
-			stderr.writef("monocre: Trying %d... ", next);
-			try
-			{
-				foreach (value; only(false, true))
-				{
-					bool[][] pattern;
-					if (axis == 0) // X
-						pattern = [[value].replicate(next)];
-					else
-						pattern = [[value].replicate(maxW)].replicate(next);
-					auto tryImage = patternLines(pattern).render(renderer, false);
-					enforce(checkSpec(tryImage, spec, pattern), only("Negative", "Positive")[value] ~ " test failed");
-				}
+		stderr.writefln("monocre: Detecting renderer maximum size...");
 
-				stderr.writeln("OK");
-				good = next;
-			}
-			catch (Exception e)
-			{
-				stderr.writefln("Not OK (%s)", e.msg);
-				bad = next;
-			}
-		}
-		if (axis == 0)
+		// When to keep searching on an axis
+		bool farEnough(size_t good, size_t bad) { return bad == size_t.max || (good + 1 < bad && (bad - good) * 4 > bad); }
+
+		while (((good[0] - 1) / 2) * ((good[1] - 1) / 2) < chars.length && // area covers all chars?
+			(farEnough(good[0], bad[0]) || farEnough(good[1], bad[1]))) // both axes close enough?
 		{
-			// Be conservative, and leave the renderer enough "room" for vertical expansion
-			// (when the limit is dictated by image area / memory).
-			good = max(gridPatternW, good / 4);
+			foreach (axis; 0 .. 2)
+			{
+				if (!farEnough(good[axis], bad[axis]))
+					continue;
+				auto next = bad[axis] == size_t.max
+					? good[axis] * 2
+					: (good[axis] + bad[axis]) / 2;
+				auto size = good;
+				size[axis] = next;
+				stderr.writef("monocre: Trying %d x %d... ", size[0], size[1]);
+				try
+				{
+					foreach (value; only(false, true))
+					{
+						bool[][] pattern = [[value].replicate(size[0])].replicate(size[1]);
+						auto tryImage = patternLines(pattern).render(renderer, false);
+						enforce(checkSpec(tryImage, spec, pattern), only("Negative", "Positive")[value] ~ " test failed");
+					}
+
+					stderr.writeln("OK");
+					good[axis] = next;
+				}
+				catch (Exception e)
+				{
+					stderr.writefln("Not OK (%s)", e.msg);
+					bad[axis] = next;
+				}
+			}
 		}
-		stderr.writefln("monocre: Using maximum %s = %d.", only("width", "height")[axis], good);
-		*only(&maxW, &maxH)[axis] = good;
+		if (chars.reduce!max >= 0x80)
+		{
+			// UTF-8-encoded Unicode characters may use more limit space
+			// than the ASCII characters we tested above.
+			// Ensure that there is room for these characters
+			// by reducing our computed size.
+			good[0] = max(gridPatternW, good[0] / 2);
+			good[1] = max(gridPatternH, good[1] / 2);
+		}
+		stderr.writefln("monocre: Using %d x %d.", good[0], good[1], good);
 	}
 
 	// 3. Find real origin
