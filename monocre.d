@@ -19,9 +19,11 @@ import ae.utils.main;
 import ae.utils.path;
 
 import charimage;
-import learn : learn;
-import read : read;
 import font;
+import learn : learn;
+import output.plain;
+import output.svg;
+import read : read;
 
 enum OutputFormat
 {
@@ -121,11 +123,20 @@ allowing to update the font with new glyphs.`)
 		auto image = stdin.readFile.viewBMP!(CharImage.Color);
 		auto font = fontPath.loadFont();
 		auto charImage = .read(image, font);
-		// outputs:
-		// - plain text
-		// - ANSI
-		// - HTML
-		// - SVG
+
+		final switch (outputFormat)
+		{
+			case OutputFormat.plain:
+				outputPlain(charImage, &stdout.write!string);
+				break;
+			case OutputFormat.ansi256:
+			case OutputFormat.ansiRGB:
+			case OutputFormat.html:
+				assert(false, "TODO");
+			case OutputFormat.svg:
+				outputSVG(charImage, &stdout.write!string);
+				break;
+		}
 	}
 }
 

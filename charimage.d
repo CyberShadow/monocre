@@ -7,7 +7,7 @@ struct CharImage
 	struct Char
 	{
 		dchar c; // when ==dchar.init, nothing was recognized at this position
-		Color fg, bg;
+		Color bg, fg;
 		string variant;
 	}
 
