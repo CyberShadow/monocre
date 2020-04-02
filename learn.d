@@ -120,7 +120,15 @@ void learn(string fontPath, string[] renderer, dchar[] chars)
 		// When to keep searching on an axis
 		bool farEnough(size_t good, size_t bad) { return bad == size_t.max || (good + 1 < bad && (bad - good) * 4 > bad); }
 
-		while (((good[0] - 1) / 2) * ((good[1] - 1) / 2) < chars.length && // area covers all chars?
+		size_t targetArea = chars.length;
+		// UTF-8-encoded Unicode characters may use more limit space
+		// than the ASCII characters we tested above.
+		// Ensure that there is room for these characters
+		// by reducing our computed size.
+		if (chars.reduce!max >= 0x80)
+			targetArea *= 5;
+
+		while ((good[0] / 3) * (good[1] / 3) < targetArea && // area covers all chars?
 			(farEnough(good[0], bad[0]) || farEnough(good[1], bad[1]))) // both axes close enough?
 		{
 			foreach (axis; 0 .. 2)
@@ -151,18 +159,6 @@ void learn(string fontPath, string[] renderer, dchar[] chars)
 					bad[axis] = next;
 				}
 			}
-		}
-		if (chars.reduce!max >= 0x80)
-		{
-			// UTF-8-encoded Unicode characters may use more limit space
-			// than the ASCII characters we tested above.
-			// Ensure that there is room for these characters
-			// by reducing our computed size.
-			foreach (_; 0 .. 2)
-				if (good[0] - gridPatternW > good[1] - gridPatternH)
-					good[0] = max(gridPatternW, good[0] / 2);
-				else
-					good[1] = max(gridPatternH, good[1] / 2);
 		}
 		stderr.writefln("monocre: Using %d x %d.", good[0], good[1]);
 		maxSize = good;
