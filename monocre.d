@@ -23,6 +23,7 @@ import ae.utils.path;
 import monocre.charimage;
 import monocre.font;
 import monocre.learn : learn;
+import monocre.output.ansi;
 import monocre.output.html;
 import monocre.output.plain;
 import monocre.output.svg;
@@ -133,8 +134,10 @@ allowing to update the font with new glyphs.`)
 				outputPlain(charImage, &stdout.write!string);
 				break;
 			case OutputFormat.ansi256:
-			case OutputFormat.ansiRGB:
 				assert(false, "TODO");
+			case OutputFormat.ansiRGB:
+				outputANSI(charImage, &stdout.write!string, &formatRGBColor);
+				break;
 			case OutputFormat.html:
 				outputHTML(charImage, &stdout.write!string);
 				break;
