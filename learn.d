@@ -1,5 +1,7 @@
 module learn;
 
+import core.internal.utf;
+
 import std.algorithm.comparison;
 import std.algorithm.iteration;
 import std.algorithm.searching;
@@ -7,36 +9,30 @@ import std.algorithm.sorting;
 import std.array;
 import std.conv;
 import std.exception;
-import std.file;
 import std.format;
 import std.functional : not;
-import std.process;
 import std.range;
-import std.stdio;
+import std.stdio : stderr;
 import std.uni;
-import std.utf;
 
-import ae.sys.file;
 import ae.utils.aa;
 import ae.utils.array;
-import ae.utils.graphics.image;
-import ae.utils.path;
+import ae.utils.graphics.view : ViewColor;
+import ae.utils.meta : I;
 
-import common;
+import font;
 
-void learn(string fontPath, string variant, string[] renderer, dchar[] chars)
+void learn(Image)(ref Font font, string variant, Image delegate(in char[] text, bool silent) renderer, dchar[] chars)
 {
+	Image render(in dchar[][] lines, bool silent = true)
+	{
+		return renderer(lines.formatInput, silent);
+	}
+
+	alias Color = ViewColor!Image;
+
 	enforce(chars.length, "Must specify at least one character to learn");
 	chars.sort();
-
-	Font font;
-	if (fontPath.exists)
-	{
-		stderr.writefln("monocre: Loading existing font from %s...", fontPath);
-		font = fontPath.loadFont();
-	}
-	else
-		stderr.writefln("monocre: Font file %s does not exist, will create new font.", fontPath);
 
 	// 1. Find grid (rough x0,y0 and character size)
 	stderr.writeln("monocre: Detecting grid...");
@@ -55,7 +51,7 @@ void learn(string fontPath, string variant, string[] renderer, dchar[] chars)
 	dchar[][] patternLines(bool[][] pattern) { return pattern.map!(map!(cell => cell ? narrowChar : ' ')).map!array.array; }
 	auto gridImage = patternLines(gridPattern)
 		.array
-		.render(renderer);
+		.I!render();
 
 	static struct Spec
 	{
@@ -63,7 +59,7 @@ void learn(string fontPath, string variant, string[] renderer, dchar[] chars)
 		Color bg, fg;
 	}
 	Spec[] specs;
-	static bool checkSpec(OutputImage image, Spec spec, bool[][] pattern)
+	static bool checkSpec(Image image, Spec spec, bool[][] pattern)
 	{
 		auto patternW = pattern[0].length;
 		auto patternH = pattern   .length;
@@ -153,7 +149,7 @@ void learn(string fontPath, string variant, string[] renderer, dchar[] chars)
 				foreach (value; only(false, true))
 				{
 					bool[][] pattern = [[value].replicate(size[0])].replicate(size[1]);
-					auto tryImage = patternLines(pattern).render(renderer, false);
+					auto tryImage = patternLines(pattern).I!render(true);
 					enforce(checkSpec(tryImage, spec, pattern), only("Negative", "Positive")[value] ~ " test failed");
 				}
 
@@ -223,7 +219,7 @@ void learn(string fontPath, string variant, string[] renderer, dchar[] chars)
 						auto cc = i < 2 && j < 2 ? c : ' ';
 						lines.getExpand(cy).getExpand(cx) = cc;
 					}
-			auto image = lines.render(renderer);
+			auto image = lines.I!render();
 
 			// Test and exclude remaining candidate offsets
 			foreach (wy; 0 .. wh)
@@ -335,7 +331,7 @@ void learn(string fontPath, string variant, string[] renderer, dchar[] chars)
 					.array
 				)
 				.array;
-			auto image = lines.render(renderer);
+			auto image = lines.I!render();
 
 			auto batchBytes = new ubyte[fontGlyphSize * batchSize];
 
@@ -373,9 +369,6 @@ void learn(string fontPath, string variant, string[] renderer, dchar[] chars)
 				}
 		}
 	}
-
-	saveFont(font, fontPath);
-	stderr.writefln("monocre: Font file %s written.", fontPath);
 }
 
 private:
@@ -390,24 +383,12 @@ string formatInput(in dchar[][] lines)
 	return lines.map!(line => "|" ~ line ~ "|").join("\n").toUTF8;
 }
 
-auto render(in dchar[][] lines, string[] renderer, bool showStderr = true)
+unittest
 {
-	version (Posix)
+	if (false)
 	{
-		import core.sys.posix.signal;
-		signal(SIGPIPE, SIG_IGN);
+		import ae.utils.graphics.image : viewBMP;
+		Font font;
+		learn(font, "", (in char[], bool) => viewBMP!bool((void[]).init), []);
 	}
-
-	auto stdin = pipe();
-	auto stdout = pipe();
-	auto stderr = showStderr ? .stderr : File(nullFileName, "wb");
-	auto pid = spawnProcess(renderer, stdin.readEnd, stdout.writeEnd, stderr);
-	stdin.writeEnd.rawWrite(lines.formatInput);
-	stdin.writeEnd.close();
-	auto data = readFile(stdout.readEnd);
-	enforce(wait(pid) == 0, "Renderer command exited with non-zero status");
-	return data.viewBMP!bool;
 }
-
-alias OutputImage = typeof(render(null, null));
-alias Color = ViewColor!OutputImage;

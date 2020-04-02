@@ -28,8 +28,6 @@ void saveFont(ref Font font, string fontPath)
 	fontPath.atomicWrite(JsonFont.fromFont(font).toPrettyJson);
 }
 
-private:
-
 struct JsonFont
 {
 	size_t width, height;

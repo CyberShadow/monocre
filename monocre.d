@@ -2,21 +2,30 @@ import std.algorithm.iteration;
 import std.algorithm.searching;
 import std.array;
 import std.conv;
+import std.exception;
+import std.file;
 import std.format;
+import std.process;
 import std.range;
+import std.stdio;
 import std.traits;
 import std.typecons;
 
+import ae.sys.file;
 import ae.utils.array;
 import ae.utils.funopt;
+import ae.utils.graphics.image;
 import ae.utils.main;
+import ae.utils.path;
 
 import learn : learn;
+import font;
 
 enum OutputFormat
 {
 	plain,
-	ansi,
+	ansi256,
+	ansiRGB,
 	html,
 	svg,
 }
@@ -36,7 +45,7 @@ allowing to update the font with new glyphs.`)
 	void learn(
 		string fontPath,
 		string renderer, string[] rendererArgs = null,
-		Option!(string, "The variant that will be rendered (e.g. underlined)") variant = null,
+		Option!(string, "The variant that will be rendered (e.g. underline)") variant = null,
 		Option!(string, "Range of characters (Unicode code points).\n" ~
 			"Example: \"32-126,1024-1279\" (ASCII + Cyrillic)\n" ~
 			"Example: \"U+2580-U+259F\" (Block Elements)\n" ~
@@ -59,17 +68,48 @@ allowing to update the font with new glyphs.`)
 			.map!(n => dchar(n))
 			.array;
 
+		Font font;
+		if (fontPath.exists)
+		{
+			stderr.writefln("monocre: Loading existing font from %s...", fontPath);
+			font = fontPath.loadFont();
+		}
+		else
+			stderr.writefln("monocre: Font file %s does not exist, will create new font.", fontPath);
+
+		auto render(in char[] text, bool silent)
+		{
+			version (Posix)
+			{
+				import core.sys.posix.signal;
+				signal(SIGPIPE, SIG_IGN);
+			}
+
+			auto stdin = pipe();
+			auto stdout = pipe();
+			auto stderr = silent ? File(nullFileName, "wb") : .stderr;
+			auto pid = spawnProcess(renderer ~ rendererArgs, stdin.readEnd, stdout.writeEnd, stderr);
+			stdin.writeEnd.rawWrite(text);
+			stdin.writeEnd.close();
+			auto data = readFile(stdout.readEnd);
+			enforce(wait(pid) == 0, "Renderer command exited with non-zero status");
+			return data.viewBMP!bool;
+		}
+
 		.learn(
-			fontPath,
+			font,
 			variant,
-			renderer ~ rendererArgs,
+			&render,
 			charList,
 		);
+
+		saveFont(font, fontPath);
+		stderr.writefln("monocre: Font file %s written.", fontPath);
 	}
 
 	@(`Recognize characters in an image using a learned font.
 
-The image should be specified as a 24-bit or 32-bit Windows bitmap on standard input.`)
+The image should be specified as a 32-bit Windows bitmap on standard input.`)
 	void read(
 		Parameter!(string, "Path to a font created by the \"learn\" action.") fontPath,
 		Option!(OutputFormat, "Output format.\n" ~
