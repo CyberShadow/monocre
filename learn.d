@@ -17,7 +17,7 @@ import std.uni;
 
 import ae.utils.aa;
 import ae.utils.array;
-import ae.utils.graphics.view : ViewColor;
+import ae.utils.graphics.view : ViewColor, xy_t;
 import ae.utils.meta : I;
 
 import font;
@@ -55,7 +55,7 @@ void learn(Image)(ref Font font, string variant, Image delegate(in char[] text, 
 
 	static struct Spec
 	{
-		int x0, y0, w, h;
+		sizediff_t x0, y0, w, h;
 		Color bg, fg;
 	}
 	Spec[] specs;
@@ -77,7 +77,7 @@ void learn(Image)(ref Font font, string variant, Image delegate(in char[] text, 
 			{
 				auto x = spec.x0 + i * spec.w;
 				auto y = spec.y0 + j * spec.h;
-				auto color = image[cast(int)x, cast(int)y];
+				auto color = image[x, y];
 				auto expectedColor = pattern[j][i] ? spec.fg : spec.bg;
 				if (color != expectedColor)
 				{
@@ -200,8 +200,8 @@ void learn(Image)(ref Font font, string variant, Image delegate(in char[] text, 
 			// DD EE FF ..
 			//          ..
 			// ...........
-			auto cw = cast(int)(maxSize[0] / 3);
-			auto ch = cast(int)(maxSize[1] / 3);
+			auto cw = maxSize[0] / 3;
+			auto ch = maxSize[1] / 3;
 			auto batchSize = min(cw * ch, chars.length - pos);
 			auto batch = chars[pos .. pos + batchSize];
 			pos += batchSize;
@@ -235,11 +235,11 @@ void learn(Image)(ref Font font, string variant, Image delegate(in char[] text, 
 						foreach (cn; 0 .. batchSize)
 						{
 							// Grid coordinates of the top-left character we're testing
-							auto cx0 = (cn % cw) * 3;
-							auto cy0 = (cn / cw) * 3;
+							xy_t cx0 = (cn % cw) * 3;
+							xy_t cy0 = (cn / cw) * 3;
 							// Image coordinates of the top-left character we're testing
-							auto icx0 = ix0 + cx0 * spec.w;
-							auto icy0 = iy0 + cy0 * spec.h;
+							xy_t icx0 = ix0 + cx0 * spec.w;
+							xy_t icy0 = iy0 + cy0 * spec.h;
 
 							// Out-of-bounds means an automatic failure
 							if (icx0 < 0 ||
@@ -277,8 +277,8 @@ void learn(Image)(ref Font font, string variant, Image delegate(in char[] text, 
 			.iota
 			.filter!(index => candidateOffsets[index])
 			.map!(index => [
-					xMin + (index.to!int % ww),
-					yMin + (index.to!int / ww),
+					xMin + (index % ww),
+					yMin + (index / ww),
 				].staticArray)
 			.array;
 		assert(workingOffsets.length == numOffsets);
@@ -309,8 +309,8 @@ void learn(Image)(ref Font font, string variant, Image delegate(in char[] text, 
 		// Split in patches as in step 3.
 		for (size_t pos; pos < chars.length; )
 		{
-			auto cw = cast(int)(maxSize[0] - 1);
-			auto ch = cast(int)(maxSize[1] - 1);
+			auto cw = maxSize[0] - 1;
+			auto ch = maxSize[1] - 1;
 			auto batchSize = min(cw * ch, chars.length - pos);
 			auto batch = chars[pos .. pos + batchSize];
 			pos += batchSize;
