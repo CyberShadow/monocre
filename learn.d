@@ -109,6 +109,15 @@ void learn(Image)(ref Font font, string variant, Image delegate(in char[] text, 
 			"Found grids with several distinct glyph sizes!");
 	auto spec = specs[0];
 
+	if (font.w || font.h)
+		assert(font.w == spec.w || font.h == spec.h,
+			"Detected font doesn't match the metrics of the given font");
+	else
+	{
+		font.w = spec.w;
+		font.h = spec.h;
+	}
+
 	// 2. Find renderer limits
 	size_t[2] maxSize;
 	{
