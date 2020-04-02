@@ -38,6 +38,7 @@ allowing to update the font with new glyphs.`)
 		string renderer, string[] rendererArgs = null,
 		Option!(string, "Range of characters (Unicode code points).\n" ~
 			"Example: \"32-126,1024-1279\" (ASCII + Cyrillic)\n" ~
+			"Example: \"U+2580-U+259F\" (Block Elements)\n" ~
 			"Default: \"32-126\" (ASCII)", "RANGE") chars = "32-127",
 	)
 	{
@@ -46,8 +47,9 @@ allowing to update the font with new glyphs.`)
 			.map!((r) {
 				auto parts = r.findSplit("-");
 				uint start, end;
+				uint parse(string s) { return s.skipOver("0x") || s.skipOver("U+") ? s.to!uint(16) : s.to!uint; }
 				if (parts[1].length)
-					list(start, end) = tuple(parts[0].to!uint, parts[2].to!uint);
+					list(start, end) = tuple(parse(parts[0]), parse(parts[2]));
 				else
 					start = end = parts[0].to!uint;
 				return iota(start, end + 1);
