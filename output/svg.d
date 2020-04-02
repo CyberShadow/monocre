@@ -26,7 +26,7 @@ void outputSVG(in ref CharImage i, void delegate(string) sink)
 	foreach (layer; i.layers)
 		foreach (y, row; layer.chars)
 			foreach (x, c; row)
-				if (c.c != dchar.init)
+				if (c)
 				{
 					bg.rect([
 						"x" : (layer.x0 + x * layer.w).text,

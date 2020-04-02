@@ -11,6 +11,7 @@ struct CharImage
 		dchar c; // when ==dchar.init, nothing was recognized at this position
 		Color bg, fg;
 		string variant;
+		bool opCast(T : bool)() const { return c != dchar.init; }
 	}
 
 	struct Layer
