@@ -325,6 +325,12 @@ string formatInput(in dchar[][] lines)
 
 auto render(in dchar[][] lines, string[] renderer, bool showStderr = true)
 {
+	version (Posix)
+	{
+		import core.sys.posix.signal;
+		signal(SIGPIPE, SIG_IGN);
+	}
+
 	auto stdin = pipe();
 	auto stdout = pipe();
 	auto stderr = showStderr ? .stderr : File(nullFileName, "wb");
