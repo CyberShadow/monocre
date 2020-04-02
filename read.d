@@ -33,11 +33,11 @@ CharImage read(Image)(Image image, in ref Font font)
 					? bits.invertGlyph(fontGlyphSize)
 					: bits;
 				auto g = Glyph(variant, c, reverse);
-				lookup.update(
-					lookupBits,
-					() => g,
-					(ref Glyph og) { if (og.c > g.c) og = g; }
-				);
+				auto p = lookupBits in lookup;
+				if (!p)
+					lookup[lookupBits.idup] = g;
+				else if (p.c > g.c)
+					*p = g;
 			}
 
 	CharImage.Layer bestLayer;
@@ -60,6 +60,7 @@ CharImage read(Image)(Image image, in ref Font font)
 				{
 					CharImage.Color[2] colors;
 					size_t nColors;
+					glyphBuf[] = 0;
 
 					size_t bit;
 					auto cx0 = x0 + cx * font.w;
