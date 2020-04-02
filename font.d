@@ -1,3 +1,5 @@
+module monocre.font;
+
 import std.algorithm.iteration;
 import std.algorithm.sorting;
 import std.array;

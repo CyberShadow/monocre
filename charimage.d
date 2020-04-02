@@ -1,3 +1,5 @@
+module monocre.charimage;
+
 import ae.utils.graphics.color;
 
 /// OCR'd image

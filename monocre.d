@@ -1,3 +1,5 @@
+module monocre.monocre;
+
 import std.algorithm.iteration;
 import std.algorithm.searching;
 import std.array;
@@ -18,12 +20,12 @@ import ae.utils.graphics.image;
 import ae.utils.main;
 import ae.utils.path;
 
-import charimage;
-import font;
-import learn : learn;
-import output.plain;
-import output.svg;
-import read : read;
+import monocre.charimage;
+import monocre.font;
+import monocre.learn : learn;
+import monocre.output.plain;
+import monocre.output.svg;
+import monocre.read : read;
 
 enum OutputFormat
 {
@@ -34,7 +36,7 @@ enum OutputFormat
 	svg,
 }
 
-struct Actions
+struct Monocre
 {
 static:
 	@(`Learn a new font using a given renderer program.
@@ -140,9 +142,9 @@ allowing to update the font with new glyphs.`)
 	}
 }
 
-void monocre(string[] args)
+void entry(string[] args)
 {
-	funoptDispatch!Actions(args);
+	funoptDispatch!Monocre(args);
 }
 
-mixin main!monocre;
+mixin main!entry;

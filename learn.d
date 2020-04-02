@@ -1,4 +1,4 @@
-module learn;
+module monocre.learn;
 
 import core.internal.utf;
 

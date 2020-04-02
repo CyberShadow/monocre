@@ -1,10 +1,10 @@
-module output.plain;
+module monocre.output.plain;
 
 import std.algorithm.iteration;
 import std.conv;
 import std.range;
 
-import charimage;
+import monocre.charimage;
 
 void outputPlain(in ref CharImage i, void delegate(string) sink)
 {

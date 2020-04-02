@@ -1,4 +1,4 @@
-module output.svg;
+module monocre.output.svg;
 
 import std.algorithm.comparison;
 import std.algorithm.iteration;
@@ -7,7 +7,7 @@ import std.format;
 
 import ae.utils.xmlbuild;
 
-import charimage;
+import monocre.charimage;
 
 void outputSVG(in ref CharImage i, void delegate(string) sink)
 {

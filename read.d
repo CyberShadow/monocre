@@ -1,3 +1,5 @@
+module monocre.read;
+
 import std.algorithm.iteration;
 import std.algorithm.mutation;
 import std.array;
@@ -9,8 +11,8 @@ import ae.utils.aa;
 import ae.utils.array;
 import ae.utils.math;
 
-import charimage;
-import font;
+import monocre.charimage;
+import monocre.font;
 
 CharImage read(Image)(Image image, in ref Font font)
 {
