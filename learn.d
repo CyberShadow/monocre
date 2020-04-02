@@ -127,8 +127,13 @@ void learn(string fontPath, string variant, string[] renderer, dchar[] chars)
 		// by reducing our computed size.
 		if (chars.reduce!max >= 0x80)
 			targetArea *= 5;
+		targetArea *= 3 * 3; // for the 3x3 pattern in the next step
+		// Do not try to render more than 65535 characters at once
+		targetArea = min(targetArea, 0xFFFF);
+		// Do not try to render more pixels than 64K*64K
+		targetArea = min(targetArea, (0x1_0000_0000 / (spec.w * spec.h)).to!size_t);
 
-		while ((good[0] / 3) * (good[1] / 3) < targetArea && // area covers all chars?
+		while (good[0] * good[1] < targetArea && // area covers all chars?
 			(farEnough(good[0], bad[0]) || farEnough(good[1], bad[1]))) // both axes close enough?
 		{
 			auto axis = good[0] < good[1] ? 0 : 1;
