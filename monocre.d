@@ -18,7 +18,9 @@ import ae.utils.graphics.image;
 import ae.utils.main;
 import ae.utils.path;
 
+import charimage;
 import learn : learn;
+import read : read;
 import font;
 
 enum OutputFormat
@@ -107,9 +109,8 @@ allowing to update the font with new glyphs.`)
 		stderr.writefln("monocre: Font file %s written.", fontPath);
 	}
 
-	@(`Recognize characters in an image using a learned font.
-
-The image should be specified as a 32-bit Windows bitmap on standard input.`)
+	@("Recognize characters in an image using a learned font.\n\n" ~
+		"The image should be specified as a 32-bit Windows bitmap on standard input.")
 	void read(
 		Parameter!(string, "Path to a font created by the \"learn\" action.") fontPath,
 		Option!(OutputFormat, "Output format.\n" ~
@@ -117,6 +118,9 @@ The image should be specified as a 32-bit Windows bitmap on standard input.`)
 			"Default: plain", "FORMAT") outputFormat = OutputFormat.plain,
 	)
 	{
+		auto image = stdin.readFile.viewBMP!(CharImage.Color);
+		auto font = fontPath.loadFont();
+		auto charImage = .read(image, font);
 		// outputs:
 		// - plain text
 		// - ANSI
