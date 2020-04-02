@@ -22,7 +22,7 @@ import ae.utils.path;
 
 import common;
 
-void learn(string fontPath, string[] renderer, dchar[] chars)
+void learn(string fontPath, string variant, string[] renderer, dchar[] chars)
 {
 	enforce(chars.length, "Must specify at least one character to learn");
 	chars.sort();
