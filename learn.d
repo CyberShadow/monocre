@@ -195,13 +195,15 @@ void learn(string fontPath, string[] renderer, dchar[] chars)
 		{
 			// Render a grid of character, each character
 			// repeating twice vertically and horizontally. I.e.:
-			// AABBCC..
-			// AABBCC..
-			// DDEEFF..
-			// DDEEFF..
-			// ........
-			auto cw = cast(int)(maxSize[0] / 2);
-			auto ch = cast(int)(maxSize[1] / 2);
+			// AA BB CC ..
+			// AA BB CC ..
+			//          ..
+			// DD EE FF ..
+			// DD EE FF ..
+			//          ..
+			// ...........
+			auto cw = cast(int)(maxSize[0] / 3);
+			auto ch = cast(int)(maxSize[1] / 3);
 			auto batchSize = min(cw * ch, chars.length - pos);
 			auto batch = chars[pos .. pos + batchSize];
 			pos += batchSize;
@@ -211,12 +213,13 @@ void learn(string fontPath, string[] renderer, dchar[] chars)
 			// Draw the character matrix
 			dchar[][] lines;
 			foreach (cn, c; batch)
-				foreach (j; 0 .. 2)
-					foreach (i; 0 .. 2)
+				foreach (j; 0 .. 3)
+					foreach (i; 0 .. 3)
 					{
-						auto cx = (cn % cw) * 2 + i;
-						auto cy = (cn / cw) * 2 + j;
-						lines.getExpand(cy).getExpand(cx) = c;
+						auto cx = (cn % cw) * 3 + i;
+						auto cy = (cn / cw) * 3 + j;
+						auto cc = i < 2 && j < 2 ? c : ' ';
+						lines.getExpand(cy).getExpand(cx) = cc;
 					}
 			auto image = lines.render(renderer);
 
@@ -234,8 +237,8 @@ void learn(string fontPath, string[] renderer, dchar[] chars)
 						foreach (cn; 0 .. batchSize)
 						{
 							// Grid coordinates of the top-left character we're testing
-							auto cx0 = (cn % cw) * 2;
-							auto cy0 = (cn / cw) * 2;
+							auto cx0 = (cn % cw) * 3;
+							auto cy0 = (cn / cw) * 3;
 							// Image coordinates of the top-left character we're testing
 							auto icx0 = ix0 + cx0 * spec.w;
 							auto icy0 = iy0 + cy0 * spec.h;
@@ -243,8 +246,8 @@ void learn(string fontPath, string[] renderer, dchar[] chars)
 							// Out-of-bounds means an automatic failure
 							if (icx0 < 0 ||
 								icy0 < 0 ||
-								icx0 + spec.w * 2 > image.w ||
-								icy0 + spec.h * 2 > image.h)
+								icx0 + spec.w * 3 > image.w ||
+								icy0 + spec.h * 3 > image.h)
 							{
 								candidateOffsets[wn] = false;
 								numOffsets--;
