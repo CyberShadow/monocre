@@ -8,6 +8,7 @@ import std.array;
 import std.conv;
 import std.exception;
 import std.file;
+import std.format;
 import std.functional : not;
 import std.process;
 import std.range;
@@ -16,6 +17,7 @@ import std.uni;
 import std.utf;
 
 import ae.sys.file;
+import ae.utils.aa;
 import ae.utils.array;
 import ae.utils.graphics.image;
 import ae.utils.path;
@@ -300,17 +302,77 @@ void learn(string fontPath, string variant, string[] renderer, dchar[] chars)
 		stderr.writefln("monocre: Using origin at %d,%d.", spec.x0, spec.y0);
 	}
 
-	// if (image.w == spec.w * (1 + gridPatternW + 1) && image.h == spec.h * gridPatternH)
-	// {
-	// 	stderr.writefln("monocre: Image is exact size");
-	// 	spec.x0 = spec.y0 = 0;
-	// }
-	// else
-	// {
-		
-	// }
+	// 4. Record the font!
 
-	// 3. find extents
+	auto fontGlyphSize = (spec.w * spec.h + 7) / 8;
+	auto variantGlyphs = font.glyphs[variant] = font.glyphs.get(variant, null).nonNull;
+
+	{
+		stderr.writefln("monocre: Rendering characters...");
+
+		// Split in patches as in step 3.
+		for (size_t pos; pos < chars.length; )
+		{
+			auto cw = cast(int)(maxSize[0] - 1);
+			auto ch = cast(int)(maxSize[1] - 1);
+			auto batchSize = min(cw * ch, chars.length - pos);
+			auto batch = chars[pos .. pos + batchSize];
+			pos += batchSize;
+			stderr.writefln("monocre: Rendering characters U+%04X through U+%04X...",
+				uint(batch[0]), uint(batch[$-1]));
+
+			// Draw the character matrix
+			auto lines = (ch + 1)
+				.iota
+				.map!(cy =>
+					(cw + 1)
+					.iota
+					.map!(cx =>
+						cx < cw && cy < ch
+						? batch.get(cy * cw + cx, ' ')
+						: narrowChar
+					)
+					.array
+				)
+				.array;
+			auto image = lines.render(renderer);
+
+			auto batchBytes = new ubyte[fontGlyphSize * batchSize];
+
+			// Record/check characters
+			foreach (cy; 0 .. ch + 1)
+				foreach (cx; 0 .. cw + 1)
+				{
+					auto ix0 = spec.x0 + cx * spec.w;
+					auto iy0 = spec.y0 + cy * spec.h;
+					if (cx < cw && cy < ch)
+					{
+						auto cn = cy * cw + cx;
+						if (cn >= batchSize)
+							continue;
+						auto glyphBytes = batchBytes[cn * fontGlyphSize .. $][0 .. fontGlyphSize];
+						size_t bit;
+						foreach (j; 0 .. spec.h)
+							foreach (i; 0 .. spec.w)
+							{
+								glyphBytes[bit / 8] |= image[ix0 + i, iy0 + j] << (bit % 8);
+								bit++;
+							}
+						auto c = batch[cn];
+						variantGlyphs[c] = glyphBytes;
+					}
+					else
+					{
+						// Check for narrowChar
+						foreach (j; 0 .. spec.h)
+							foreach (i; 0 .. spec.w)
+								enforce(image[ix0 + i, iy0 + j] == gridImage[spec.x0 + spec.w + i, spec.y0 + spec.h + j],
+									"Did not find control terminator pixel at %d,%d (caused by variable-width character?)"
+									.format(ix0 + i, iy0 + j));
+					}
+				}
+		}
+	}
 
 	saveFont(font, fontPath);
 	stderr.writefln("monocre: Font file %s written.", fontPath);
