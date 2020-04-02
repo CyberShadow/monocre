@@ -131,33 +131,32 @@ void learn(string fontPath, string[] renderer, dchar[] chars)
 		while ((good[0] / 3) * (good[1] / 3) < targetArea && // area covers all chars?
 			(farEnough(good[0], bad[0]) || farEnough(good[1], bad[1]))) // both axes close enough?
 		{
-			foreach (axis; 0 .. 2)
-			{
-				if (!farEnough(good[axis], bad[axis]))
-					continue;
-				auto next = bad[axis] == size_t.max
-					? good[axis] * 2
-					: (good[axis] + bad[axis]) / 2;
-				auto size = good;
-				size[axis] = next;
-				stderr.writef("monocre: Trying %d x %d... ", size[0], size[1]);
-				try
-				{
-					foreach (value; only(false, true))
-					{
-						bool[][] pattern = [[value].replicate(size[0])].replicate(size[1]);
-						auto tryImage = patternLines(pattern).render(renderer, false);
-						enforce(checkSpec(tryImage, spec, pattern), only("Negative", "Positive")[value] ~ " test failed");
-					}
+			auto axis = good[0] < good[1] ? 0 : 1;
+			if (!farEnough(good[axis], bad[axis]))
+				axis = 1 - axis;
 
-					stderr.writeln("OK");
-					good[axis] = next;
-				}
-				catch (Exception e)
+			auto next = bad[axis] == size_t.max
+				? good[axis] * 2
+				: (good[axis] + bad[axis]) / 2;
+			auto size = good;
+			size[axis] = next;
+			stderr.writef("monocre: Trying %d x %d... ", size[0], size[1]);
+			try
+			{
+				foreach (value; only(false, true))
 				{
-					stderr.writefln("Not OK (%s)", e.msg);
-					bad[axis] = next;
+					bool[][] pattern = [[value].replicate(size[0])].replicate(size[1]);
+					auto tryImage = patternLines(pattern).render(renderer, false);
+					enforce(checkSpec(tryImage, spec, pattern), only("Negative", "Positive")[value] ~ " test failed");
 				}
+
+				stderr.writeln("OK");
+				good[axis] = next;
+			}
+			catch (Exception e)
+			{
+				stderr.writefln("Not OK (%s)", e.msg);
+				bad[axis] = next;
 			}
 		}
 		stderr.writefln("monocre: Using %d x %d.", good[0], good[1]);
