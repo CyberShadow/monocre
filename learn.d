@@ -3,7 +3,11 @@ module learn;
 import std.algorithm.comparison;
 import std.algorithm.iteration;
 import std.algorithm.searching;
+import std.algorithm.sorting;
+import std.array;
+import std.conv;
 import std.exception;
+import std.file;
 import std.functional : not;
 import std.process;
 import std.range;
@@ -12,12 +16,25 @@ import std.uni;
 import std.utf;
 
 import ae.sys.file;
+import ae.utils.array;
 import ae.utils.graphics.image;
 import ae.utils.path;
+
+import common;
 
 void learn(string fontPath, string[] renderer, dchar[] chars)
 {
 	enforce(chars.length, "Must specify at least one character to learn");
+	chars.sort();
+
+	Font font;
+	if (fontPath.exists)
+	{
+		stderr.writefln("monocre: Loading existing font from %s...", fontPath);
+		font = fontPath.loadFont();
+	}
+	else
+		stderr.writefln("monocre: Font file %s does not exist, will create new font.", fontPath);
 
 	// 1. Find grid (rough x0,y0 and character size)
 	stderr.writeln("monocre: Detecting grid...");
@@ -95,8 +112,9 @@ void learn(string fontPath, string[] renderer, dchar[] chars)
 	auto spec = specs[0];
 
 	// 2. Find renderer limits
-	size_t[2] good = [gridPatternW, gridPatternH], bad = [size_t.max, size_t.max];
+	size_t[2] maxSize;
 	{
+		size_t[2] good = [gridPatternW, gridPatternH], bad = [size_t.max, size_t.max];
 		stderr.writefln("monocre: Detecting renderer maximum size...");
 
 		// When to keep searching on an axis
@@ -140,13 +158,145 @@ void learn(string fontPath, string[] renderer, dchar[] chars)
 			// than the ASCII characters we tested above.
 			// Ensure that there is room for these characters
 			// by reducing our computed size.
-			good[0] = max(gridPatternW, good[0] / 2);
-			good[1] = max(gridPatternH, good[1] / 2);
+			foreach (_; 0 .. 2)
+				if (good[0] - gridPatternW > good[1] - gridPatternH)
+					good[0] = max(gridPatternW, good[0] / 2);
+				else
+					good[1] = max(gridPatternH, good[1] / 2);
 		}
-		stderr.writefln("monocre: Using %d x %d.", good[0], good[1], good);
+		stderr.writefln("monocre: Using %d x %d.", good[0], good[1]);
+		maxSize = good;
 	}
 
-	// 3. Find real origin
+	// 3. Find origin / glyph bounds
+	{
+		stderr.writefln("monocre: Detecting origin / glyph bounds...");
+		// Estimate initial bounds of the search window
+		// from the positive matches we found from the grid detection.
+		auto xMin = specs.map!(spec => spec.x0).reduce!max + 1 - spec.w;
+		auto yMin = specs.map!(spec => spec.y0).reduce!max + 1 - spec.h;
+		auto xMax = specs.map!(spec => spec.x0).reduce!min + 1;
+		auto yMax = specs.map!(spec => spec.y0).reduce!min + 1;
+
+		auto ww = xMax - xMin; // window width
+		auto wh = yMax - yMin; // window height
+
+		// Initial / remaining number of candidates
+		size_t numOffsets = ww * wh;
+		// Boolean matrix for tracking whether a candidate is viable
+		auto candidateOffsets = new bool[numOffsets];
+		candidateOffsets[] = true;
+
+		// Split the rendered characters in batches,
+		// and keep going until only one possibility remains
+		// or we're out of characters.
+		size_t pos;
+		while (numOffsets > 1 && pos < chars.length)
+		{
+			// Render a grid of character, each character
+			// repeating twice vertically and horizontally. I.e.:
+			// AABBCC..
+			// AABBCC..
+			// DDEEFF..
+			// DDEEFF..
+			// ........
+			auto cw = cast(int)(maxSize[0] / 2);
+			auto ch = cast(int)(maxSize[1] / 2);
+			auto batchSize = min(cw * ch, chars.length - pos);
+			auto batch = chars[pos .. pos + batchSize];
+			pos += batchSize;
+			stderr.writefln("monocre: Checking characters U+%04X through U+%04X...",
+				uint(batch[0]), uint(batch[$-1]));
+
+			// Draw the character matrix
+			dchar[][] lines;
+			foreach (cn, c; batch)
+				foreach (j; 0 .. 2)
+					foreach (i; 0 .. 2)
+					{
+						auto cx = (cn % cw) * 2 + i;
+						auto cy = (cn / cw) * 2 + j;
+						lines.getExpand(cy).getExpand(cx) = c;
+					}
+			auto image = lines.render(renderer);
+
+			// Test and exclude remaining candidate offsets
+			foreach (wy; 0 .. wh)
+				foreach (wx; 0 .. ww)
+				{
+					auto wn = wy * ww + wx; // candidate index
+					if (candidateOffsets[wn])
+					{
+						// Image coordinates of the origin we're testing
+						auto ix0 = xMin + wx;
+						auto iy0 = yMin + wy;
+					boundCheckLoop:
+						foreach (cn; 0 .. batchSize)
+						{
+							// Grid coordinates of the top-left character we're testing
+							auto cx0 = (cn % cw) * 2;
+							auto cy0 = (cn / cw) * 2;
+							// Image coordinates of the top-left character we're testing
+							auto icx0 = ix0 + cx0 * spec.w;
+							auto icy0 = iy0 + cy0 * spec.h;
+
+							// Out-of-bounds means an automatic failure
+							if (icx0 < 0 ||
+								icy0 < 0 ||
+								icx0 + spec.w * 2 > image.w ||
+								icy0 + spec.h * 2 > image.h)
+							{
+								candidateOffsets[wn] = false;
+								numOffsets--;
+								break boundCheckLoop;
+							}
+
+							// Check every pixel in the character
+							foreach (j; 0 .. spec.h)
+								foreach (i; 0 .. spec.w)
+								{
+									auto p00 = image[icx0 + i         , icy0 + j         ];
+									if (p00 != image[icx0 + i + spec.w, icy0 + j         ] ||
+										p00 != image[icx0 + i         , icy0 + j + spec.h] ||
+										p00 != image[icx0 + i + spec.w, icy0 + j + spec.h])
+									{
+										candidateOffsets[wn] = false;
+										numOffsets--;
+										break boundCheckLoop;
+									}
+								}
+						}
+					}
+				}
+		}
+
+		enforce(numOffsets > 0, "Failed to detect an origin");
+
+		auto workingOffsets = candidateOffsets.length
+			.iota
+			.filter!(index => candidateOffsets[index])
+			.map!(index => [
+					xMin + (index.to!int % ww),
+					yMin + (index.to!int / ww),
+				].staticArray)
+			.array;
+		assert(workingOffsets.length == numOffsets);
+
+		if (numOffsets == 1)
+			stderr.writefln("monocre: Found origin precisely.");
+		else
+		{
+			stderr.writefln("monocre: Warning: Could not detect precise origin. Valid origins found are:");
+			foreach (origin; workingOffsets)
+				stderr.writefln("monocre: - %d,%d", origin[0], origin[1]);
+			stderr.writefln("monocre: Consider adding a full-size character such as █");
+			stderr.writefln("monocre: ('FULL BLOCK', U+2588) to the tested character set.");
+		}
+		spec.x0 = workingOffsets[0][0];
+		spec.y0 = workingOffsets[0][1];
+		stderr.writefln("monocre: Using origin at %d,%d.", spec.x0, spec.y0);
+	}
+
 	// if (image.w == spec.w * (1 + gridPatternW + 1) && image.h == spec.h * gridPatternH)
 	// {
 	// 	stderr.writefln("monocre: Image is exact size");
@@ -158,7 +308,9 @@ void learn(string fontPath, string[] renderer, dchar[] chars)
 	// }
 
 	// 3. find extents
-	
+
+	saveFont(font, fontPath);
+	stderr.writefln("monocre: Font file %s written.", fontPath);
 }
 
 private:
@@ -170,7 +322,7 @@ immutable dchar[] narrowChars = ['.', 'l', '1'];
 string formatInput(in dchar[][] lines)
 {
 	// Protect against whitespace trimming in rendering scripts
-	return lines.map!(line => "|" ~ line ~ "|\n").join.toUTF8;
+	return lines.map!(line => "|" ~ line ~ "|").join("\n").toUTF8;
 }
 
 auto render(in dchar[][] lines, string[] renderer, bool showStderr = true)
