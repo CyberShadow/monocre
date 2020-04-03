@@ -23,6 +23,7 @@ import ae.utils.path;
 import monocre.charimage;
 import monocre.font;
 import monocre.learn : learn;
+import monocre.output;
 import monocre.output.ansi;
 import monocre.output.html;
 import monocre.output.json;
@@ -130,25 +131,27 @@ allowing to update the font with new glyphs.`)
 		auto font = fontPath.loadFont();
 		auto charImage = .read(image, font);
 
+		Sink sink = &stdout.write!(const(char)[]);
+
 		final switch (outputFormat)
 		{
 			case OutputFormat.plain:
-				outputPlain(charImage, &stdout.write!string);
+				outputPlain(charImage, sink);
 				break;
 			case OutputFormat.ansi256:
-				outputANSI(charImage, &stdout.write!string, &format256Color);
+				outputANSI(charImage, sink, &format256Color);
 				break;
 			case OutputFormat.ansiRGB:
-				outputANSI(charImage, &stdout.write!string, &formatRGBColor);
+				outputANSI(charImage, sink, &formatRGBColor);
 				break;
 			case OutputFormat.html:
-				outputHTML(charImage, &stdout.write!string);
+				outputHTML(charImage, sink);
 				break;
 			case OutputFormat.svg:
-				outputSVG(charImage, &stdout.write!string);
+				outputSVG(charImage, sink);
 				break;
 			case OutputFormat.json:
-				outputJSON(charImage, &stdout.write!string);
+				outputJSON(charImage, sink);
 				break;
 		}
 	}
