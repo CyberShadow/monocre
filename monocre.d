@@ -134,7 +134,8 @@ allowing to update the font with new glyphs.`)
 				outputPlain(charImage, &stdout.write!string);
 				break;
 			case OutputFormat.ansi256:
-				assert(false, "TODO");
+				outputANSI(charImage, &stdout.write!string, &format256Color);
+				break;
 			case OutputFormat.ansiRGB:
 				outputANSI(charImage, &stdout.write!string, &formatRGBColor);
 				break;
