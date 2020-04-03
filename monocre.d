@@ -7,6 +7,7 @@ import std.conv;
 import std.exception;
 import std.file;
 import std.format;
+import std.getopt : getoptConfig = config;
 import std.process;
 import std.range;
 import std.stdio;
@@ -159,7 +160,7 @@ allowing to update the font with new glyphs.`)
 
 void entry(string[] args)
 {
-	funoptDispatch!Monocre(args);
+	funoptDispatch!(Monocre, FunOptConfig([getoptConfig.stopOnFirstNonOption]))(args);
 }
 
 mixin main!entry;
