@@ -26,7 +26,9 @@ struct CharImage
 	Layer[] layers;
 }
 
-TypeForBits!(EnumMembers!Variant.length) parseVariant(Variant)(string str)
+alias ParsedVariant(Variant) = TypeForBits!(EnumMembers!Variant.length);
+
+ParsedVariant!Variant parseVariant(Variant)(string str)
 if (is(Variant == enum))
 {
 	import std.algorithm.iteration : map, reduce;
@@ -34,7 +36,7 @@ if (is(Variant == enum))
 	import std.conv : to, ConvException;
 	import std.stdio : stderr;
 
-	alias R = TypeForBits!(EnumMembers!Variant.length);
+	alias R = typeof(return);
 
 	static R[typeof(str.ptr)] cache;
 	return cache.require(

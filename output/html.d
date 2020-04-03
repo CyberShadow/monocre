@@ -18,18 +18,23 @@ void outputHTML(in ref CharImage i, Sink sink)
 			CharImage.Char last;
 			foreach (x, c; row)
 			{
-				if (last && (last.bg != c.bg || last.fg != c.fg))
-					sink(`</span>`);
-				if (c && (last.bg != c.bg || last.fg != c.fg))
+				if (last.bg != c.bg || last.fg != c.fg || last.variant !is c.variant)
 				{
-					sink(`<span style="background-color: `);
-					formatCSSColor(c.bg, sink);
-					sink(`; color: `);
-					formatCSSColor(c.fg, sink);
-					sink(`;">`);
+					if (last)
+						sink(`</span>`);
+					if (c)
+					{
+						sink(`<span style="background-color: `);
+						formatCSSColor(c.bg, sink);
+						sink(`; color: `);
+						formatCSSColor(c.fg, sink);
+						sink(`;`);
+						formatVariants(c.variant.parseVariant!CSSVariant, sink);
+						sink(`">`);
+					}
+					last = c;
 				}
 				sink.formattedWrite!"&#x%x;"(uint(c ? c.c : ' '));
-				last = c;
 			}
 			if (last)
 				sink("</span>");
@@ -38,4 +43,12 @@ void outputHTML(in ref CharImage i, Sink sink)
 		sink(`</pre>`);
 	}
 	sink(`</html>`);
+}
+
+bool sameStyle(in ref CharImage.Char a, in ref CharImage.Char b)
+{
+	return
+		a.bg == b.bg &&
+		a.fg == b.fg &&
+		a.variant is b.variant;
 }

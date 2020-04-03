@@ -41,6 +41,7 @@ void outputSVG(in ref CharImage i, void delegate(string) sink)
 							"x" : (layer.x0 + (x + 0.5) * layer.w).text,
 							"y" : (layer.y0 + (y + 0.5) * layer.h).text,
 							"fill" : c.fg.formatCSSColor(),
+							"style" : formatVariants(c.variant.parseVariant!CSSVariant),
 						])[] = c.c.to!string;
 				}
 
