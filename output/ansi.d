@@ -10,6 +10,7 @@ import std.range;
 import std.traits;
 import std.typecons;
 
+import monocre.output;
 import monocre.charimage;
 
 enum Variant
@@ -22,7 +23,7 @@ enum Variant
 	overline,
 }
 
-void outputANSI(in ref CharImage i, void delegate(string) sink, string function(CharImage.Color, bool fg) formatColor)
+void outputANSI(in ref CharImage i, Sink sink, void function(Sink sink, CharImage.Color, bool fg) formatColor)
 {
 	foreach (layer; i.layers)
 		foreach (y, row; layer.chars)
@@ -32,9 +33,9 @@ void outputANSI(in ref CharImage i, void delegate(string) sink, string function(
 			void setStyle(CharImage.Char c)
 			{
 				if (last.bg != c.bg)
-					sink(c && c.bg.a ? formatColor(c.bg, false) : "\x1B[49m");
+					c && c.bg.a ? formatColor(sink, c.bg, false) : sink("\x1B[49m");
 				if (last.fg != c.fg)
-					sink(c && c.fg.a ? formatColor(c.fg, true ) : "\x1B[39m");
+					c && c.fg.a ? formatColor(sink, c.fg, true ) : sink("\x1B[39m");
 				if (last.variant !is c.variant)
 				{
 					auto lastVariant = last.variant.parseVariant!Variant();
@@ -45,7 +46,7 @@ void outputANSI(in ref CharImage i, void delegate(string) sink, string function(
 					{
 						auto flag = 1 << v;
 						if ((lastVariant & flag) != (variant & flag))
-							sink("\x1B[%dm".format((variant & flag) ? enable[v] : disable[v]));
+							sink.formattedWrite!"\x1B[%dm"((variant & flag) ? enable[v] : disable[v]);
 					}
 				}
 			}
@@ -60,13 +61,13 @@ void outputANSI(in ref CharImage i, void delegate(string) sink, string function(
 		}
 }
 
-string formatRGBColor(CharImage.Color color, bool fg)
+void formatRGBColor(Sink sink, CharImage.Color color, bool fg)
 {
-	return "\x1B[%d;2;%d;%d;%dm".format(
+	sink.formattedWrite!"\x1B[%d;2;%d;%d;%dm"(
 		fg ? 38 : 48, color.r, color.g, color.b);
 }
 
-string format256Color(CharImage.Color color, bool fg)
+void format256Color(Sink sink, CharImage.Color color, bool fg)
 {
 	static immutable ansiPal = [
 		"000000", "800000", "008000", "808000", "000080", "800080", "008080", "c0c0c0",
@@ -124,6 +125,6 @@ string format256Color(CharImage.Color color, bool fg)
 		.reduce!min
 		[1];
 
-	return "\x1B[%d;5;%dm".format(
+	sink.formattedWrite!"\x1B[%d;5;%dm"(
 		fg ? 38 : 48, index);
 }
