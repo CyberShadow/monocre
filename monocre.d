@@ -25,6 +25,7 @@ import monocre.font;
 import monocre.learn : learn;
 import monocre.output.ansi;
 import monocre.output.html;
+import monocre.output.json;
 import monocre.output.plain;
 import monocre.output.svg;
 import monocre.read : read;
@@ -36,6 +37,7 @@ enum OutputFormat
 	ansiRGB,
 	html,
 	svg,
+	json,
 }
 
 struct Monocre
@@ -144,6 +146,9 @@ allowing to update the font with new glyphs.`)
 				break;
 			case OutputFormat.svg:
 				outputSVG(charImage, &stdout.write!string);
+				break;
+			case OutputFormat.json:
+				outputJSON(charImage, &stdout.write!string);
 				break;
 		}
 	}
