@@ -8,6 +8,7 @@ import std.format;
 import ae.utils.xmlbuild;
 
 import monocre.charimage;
+import monocre.output.css;
 
 void outputSVG(in ref CharImage i, void delegate(string) sink)
 {
@@ -33,13 +34,13 @@ void outputSVG(in ref CharImage i, void delegate(string) sink)
 						"y" : (layer.y0 + y * layer.h).text,
 						"width" : (layer.w).text,
 						"height" : (layer.h).text,
-						"fill" : "rgba(%d,%d,%d,%f)".format(c.bg.r, c.bg.g, c.bg.b, c.bg.a / 255.),
+						"fill" : c.bg.formatCSSColor(),
 					]);
 					if (c.c != ' ')
 						fg.text([
 							"x" : (layer.x0 + (x + 0.5) * layer.w).text,
 							"y" : (layer.y0 + (y + 0.5) * layer.h).text,
-							"fill" : "rgba(%d,%d,%d,%f)".format(c.fg.r, c.fg.g, c.fg.b, c.fg.a / 255.),
+							"fill" : c.fg.formatCSSColor(),
 						])[] = c.c.to!string;
 				}
 

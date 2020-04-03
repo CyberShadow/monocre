@@ -2,8 +2,9 @@ module monocre.output.html;
 
 import std.format;
 
-import monocre.output;
 import monocre.charimage;
+import monocre.output;
+import monocre.output.css;
 
 void outputHTML(in ref CharImage i, Sink sink)
 {
@@ -20,10 +21,13 @@ void outputHTML(in ref CharImage i, Sink sink)
 				if (last && (last.bg != c.bg || last.fg != c.fg))
 					sink(`</span>`);
 				if (c && (last.bg != c.bg || last.fg != c.fg))
-					sink.formattedWrite!`<span style="background-color: rgba(%d,%d,%d,%f); color: rgba(%d,%d,%d,%f);">`(
-						c.bg.r, c.bg.g, c.bg.b, c.bg.a / 255.,
-						c.fg.r, c.fg.g, c.fg.b, c.fg.a / 255.,
-					);
+				{
+					sink(`<span style="background-color: `);
+					formatCSSColor(c.bg, sink);
+					sink(`; color: `);
+					formatCSSColor(c.fg, sink);
+					sink(`;">`);
+				}
 				sink.formattedWrite!"&#x%x;"(uint(c ? c.c : ' '));
 				last = c;
 			}
