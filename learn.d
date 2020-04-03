@@ -59,7 +59,7 @@ void learn(Image)(ref Font font, string variant, Image delegate(in char[] text, 
 		Color bg, fg;
 	}
 	Spec[] specs;
-	static bool checkSpec(Image image, Spec spec, bool[][] pattern)
+	static bool checkSpec(ref Image image, ref Spec spec, bool[][] pattern)
 	{
 		auto patternW = pattern[0].length;
 		auto patternH = pattern   .length;
