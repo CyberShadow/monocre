@@ -7,9 +7,20 @@ import std.conv;
 import std.format;
 import std.math;
 import std.range;
+import std.traits;
 import std.typecons;
 
 import monocre.charimage;
+
+enum Variant
+{
+	bold,
+	light,
+	italic,
+	underline,
+	strikethrough,
+	overline,
+}
 
 void outputANSI(in ref CharImage i, void delegate(string) sink, string function(CharImage.Color, bool fg) formatColor)
 {
@@ -17,20 +28,34 @@ void outputANSI(in ref CharImage i, void delegate(string) sink, string function(
 		foreach (y, row; layer.chars)
 		{
 			CharImage.Char last;
-			void setColor(CharImage.Char c)
+
+			void setStyle(CharImage.Char c)
 			{
 				if (last.bg != c.bg)
 					sink(c && c.bg.a ? formatColor(c.bg, false) : "\x1B[49m");
 				if (last.fg != c.fg)
 					sink(c && c.fg.a ? formatColor(c.fg, true ) : "\x1B[39m");
+				if (last.variant !is c.variant)
+				{
+					auto lastVariant = last.variant.parseVariant!Variant();
+					auto     variant = c   .variant.parseVariant!Variant();
+					static immutable  enable = [ 1,  2,  3,  4,  9, 53];
+					static immutable disable = [22, 22, 23, 24, 29, 55];
+					foreach (v; EnumMembers!Variant)
+					{
+						auto flag = 1 << v;
+						if ((lastVariant & flag) != (variant & flag))
+							sink("\x1B[%dm".format((variant & flag) ? enable[v] : disable[v]));
+					}
+				}
 			}
 			foreach (x, c; row)
 			{
-				setColor(c);
+				setStyle(c);
 				sink(c ? c.c.to!string : " ");
 				last = c;
 			}
-			setColor(CharImage.Char.init);
+			setStyle(CharImage.Char.init);
 			sink("\n");
 		}
 }

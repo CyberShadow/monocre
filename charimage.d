@@ -1,6 +1,9 @@
 module monocre.charimage;
 
+import std.traits;
+
 import ae.utils.graphics.color;
+import ae.utils.math;
 
 /// OCR'd image
 struct CharImage
@@ -21,4 +24,39 @@ struct CharImage
 		Char[][] chars;
 	}
 	Layer[] layers;
+}
+
+TypeForBits!(EnumMembers!Variant.length) parseVariant(Variant)(string str)
+if (is(Variant == enum))
+{
+	import std.algorithm.iteration : map, reduce;
+	import std.array : split;
+	import std.conv : to, ConvException;
+	import std.stdio : stderr;
+
+	alias R = TypeForBits!(EnumMembers!Variant.length);
+
+	static R[typeof(str.ptr)] cache;
+	return cache.require(
+		str.ptr,
+		str.split(",").map!(
+			(name)
+			{
+				try
+					return cast(R)(1 << name.to!Variant);
+				catch (ConvException e)
+				{
+					stderr.writefln("monocre: Warning: Ignoring unknown variant %s", name);
+					return R(0);
+				}
+			}
+		)
+		.reduce!((a, b) => a |= b)
+	);
+}
+
+unittest
+{
+	enum Variant { a, b }
+	assert(parseVariant!Variant("a,b") == 3);
 }

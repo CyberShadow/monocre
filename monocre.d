@@ -55,7 +55,7 @@ allowing to update the font with new glyphs.`)
 	void learn(
 		string fontPath,
 		string renderer, string[] rendererArgs = null,
-		Option!(string, "The variant that will be rendered (e.g. underline)") variant = null,
+		Option!(string, "The variant that will be rendered (e.g. \"underline\")") variant = null,
 		Option!(string, "Range of characters (Unicode code points).\n" ~
 			"Example: \"32-126,1024-1279\" (ASCII + Cyrillic)\n" ~
 			"Example: \"U+2580-U+259F\" (Block Elements)\n" ~
