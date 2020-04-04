@@ -71,6 +71,7 @@ void formatVariants(ParsedVariant!CSSVariant variants, Sink sink)
 				if (currentDecl)
 					sink(";");
 				sink(variantCSS[v][0]);
+				sink(":");
 				currentDecl = variantCSS[v][0];
 			}
 			else
