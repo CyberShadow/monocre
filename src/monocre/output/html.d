@@ -57,11 +57,3 @@ void outputHTML(in ref CharImage i, Sink sink)
 	}
 	sink(`</html>`);
 }
-
-bool sameStyle(in ref CharImage.Char a, in ref CharImage.Char b)
-{
-	return
-		a.bg == b.bg &&
-		a.fg == b.fg &&
-		a.variant is b.variant;
-}
