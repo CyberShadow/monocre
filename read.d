@@ -45,6 +45,9 @@ CharImage read(Image)(Image image, in ref Font font)
 	CharImage.Layer bestLayer;
 	size_t bestScore;
 
+	enforce(image.w >= font.w && image.h >= font.h,
+		"Image is too small to contain even a single character");
+
 	foreach (y0; 0 .. font.h)
 		foreach (x0; 0 .. font.w)
 		{
