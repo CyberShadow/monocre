@@ -103,82 +103,11 @@ void learn(Image)(ref Font font, string variant, Image delegate(in char[] text, 
 		}
 	}
 
-	static if (is(Color == bool))
-	{
-		// Optimized version for 1-bit images.
-		// Note: faster algorithms exist, see e.g.:
-		// http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.45.581&rep=rep1&type=pdf
-
-		alias RowState = TypeForBits!gridPatternW;
-		alias State = RowState[gridPatternH];
-
-		static void statePut(bool initial = false)(ref RowState cs, bool bit)
-		{
-			cs <<= 1;
-			cs |= bit;
-			static if (!initial)
-				cs &= (1 << gridPatternW) - 1;
-		}
-
-		static immutable State[2] soughtStates = {
-			State[2] soughtStates;
-			foreach (y; 0 .. gridPatternH)
-				foreach (x; 0 .. gridPatternW)
-					foreach (s; 0 .. 2)
-						statePut!true(soughtStates[s][y], gridPattern[y][x] ^ !!s);
-			return soughtStates;
-		}();
-
-		RowState[] initialRowStates = new RowState[gridImage.h];
-
-		foreach (h; 1 .. gridImage.h / gridPatternH + 1)
-			foreach (w; 1 .. gridImage.w / gridPatternW + 1)
-				foreach (xp; 0 .. w) // Phase
-					foreach (yp; 0 .. h)
-					{
-						auto sliced = slice(gridImage, xp, yp, w, h);
-
-						// Prepare initial per-row states
-						foreach (y; 0 .. sliced.h)
-						{
-							RowState rs;
-							foreach (x; 0 .. gridPatternW)
-							{
-								rs <<= 1;
-								rs |= sliced[x, y];
-							}
-							initialRowStates[y] = rs;
-						}
-
-						foreach (y0; 0 .. sliced.h - gridPatternH + 1)
-						{
-							State state = initialRowStates[y0 .. y0 + gridPatternH];
-							if (state == soughtStates[0] || state == soughtStates[1])
-								trySpec(xp + 0 * w, yp + y0 * h, w, h);
-
-							foreach (x0; 1 .. sliced.w - gridPatternW)
-							{
-								foreach (y, ref row; state)
-								{
-									row <<= 1;
-									row |= sliced[x0 + gridPatternW - 1, y0 + y];
-									row &= (1 << gridPatternW) - 1;
-								}
-								if (state == soughtStates[0] || state == soughtStates[1])
-									trySpec(xp + x0 * w, yp + y0 * h, w, h);
-							}
-						}
-					}
-	}
-	else
-	{
-		// Slow generic version
-		foreach (x0; 0 .. gridImage.w)
-			foreach (y0; 0 .. gridImage.h)
-				foreach (w; 1 .. (gridImage.w - x0 - 1) / (gridPatternW - 1) + 1)
-					foreach (h; 1 .. (gridImage.h - y0 - 1) / (gridPatternH - 1) + 1)
-						trySpec(x0, y0, w, h);
-	}
+	foreach (x0; 0 .. gridImage.w)
+		foreach (y0; 0 .. gridImage.h)
+			foreach (w; 1 .. (gridImage.w - x0 - 1) / (gridPatternW - 1) + 1)
+				foreach (h; 1 .. (gridImage.h - y0 - 1) / (gridPatternH - 1) + 1)
+					trySpec(x0, y0, w, h);
 
 	enforce(specs.length, "Could not detect a character grid!");
 	foreach (spec; specs)
