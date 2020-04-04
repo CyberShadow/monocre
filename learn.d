@@ -5,18 +5,21 @@ import core.internal.utf;
 import std.algorithm.comparison;
 import std.algorithm.iteration;
 import std.algorithm.searching;
+import std.algorithm.setops;
 import std.algorithm.sorting;
 import std.array;
 import std.conv;
 import std.exception;
 import std.format;
 import std.functional : not;
+import std.parallelism;
 import std.range;
 import std.stdio : stderr;
 import std.uni;
 
 import ae.utils.aa;
 import ae.utils.array;
+import ae.utils.autodata;
 import ae.utils.graphics.view;
 import ae.utils.math;
 import ae.utils.meta : I;
@@ -60,6 +63,8 @@ void learn(Image)(ref Font font, string variant, Image delegate(in char[] text, 
 	{
 		sizediff_t x0, y0, w, h;
 		Color bg, fg;
+		mixin AutoCompare;
+		mixin ProcessAllData;
 	}
 	Spec[] specs;
 	static bool checkSpec(ref Image image, ref Spec spec, in bool[][] pattern)
@@ -99,16 +104,20 @@ void learn(Image)(ref Font font, string variant, Image delegate(in char[] text, 
 		{
 			stderr.writefln("monocre: Found grid: x=%d y=%d w=%d h=%d",
 				spec.x0, spec.y0, spec.w, spec.h);
-			specs ~= spec;
+			synchronized specs ~= spec;
 		}
 	}
 
-	foreach (x0; 0 .. gridImage.w)
-		foreach (y0; 0 .. gridImage.h)
-			foreach (w; 1 .. (gridImage.w - x0 - 1) / (gridPatternW - 1) + 1)
-				foreach (h; 1 .. (gridImage.h - y0 - 1) / (gridPatternH - 1) + 1)
-					trySpec(x0, y0, w, h);
+	foreach (xy; cartesianProduct(gridImage.w.iota, gridImage.h.iota).parallel)
+	{
+		auto x0 = xy[0];
+		auto y0 = xy[1];
+		foreach (w; 1 .. (gridImage.w - x0 - 1) / (gridPatternW - 1) + 1)
+			foreach (h; 1 .. (gridImage.h - y0 - 1) / (gridPatternH - 1) + 1)
+				trySpec(x0, y0, w, h);
+	}
 
+	specs.sort();
 	enforce(specs.length, "Could not detect a character grid!");
 	foreach (spec; specs)
 		enforce(spec.w == specs[0].w && spec.h == specs[0].h,
