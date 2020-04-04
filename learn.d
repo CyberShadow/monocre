@@ -17,7 +17,8 @@ import std.uni;
 
 import ae.utils.aa;
 import ae.utils.array;
-import ae.utils.graphics.view : ViewColor, xy_t;
+import ae.utils.graphics.view;
+import ae.utils.math;
 import ae.utils.meta : I;
 
 import font;
@@ -38,14 +39,16 @@ void learn(Image)(ref Font font, string variant, Image delegate(in char[] text, 
 	stderr.writeln("monocre: Detecting grid...");
 
 	dchar narrowChar = chain(narrowChars.filter!(c => chars.canFind(c)), chars.filter!(not!isWhite).front.only).front;
-	// Use a grid large enough so that it's not ambiguous with some random decoration,
-	// but small enough that it does not exceed the rendered bitmap size.
-	enum gridPatternW = 1 + 7 + 1;
-	enum gridPatternH = 1 + 5 + 1;
+	// Decisions for picking a pattern size:
+	// - Large enough so that it's not ambiguous with some random decoration
+	// - Small enough that it does not exceed the renderer output bitmap size
+	// - Ideally the pattern should fit in a machine word for quick search
+	enum gridPatternW = 1 + 6 + 1;
+	enum gridPatternH = 1 + 5 + 2;
 	auto gridPattern =
 		gridPatternH.iota.map!(j =>
 			gridPatternW.iota.map!(i =>
-				i > 0 && i + 1 < gridPatternW && j > 0 && j + 1 < gridPatternH && (i + 1) != j
+				i > 0 && i + 1 < gridPatternW && j > 0 && j + 2 < gridPatternH && (i + 1) != j
 			).array
 		).array;
 	dchar[][] patternLines(bool[][] pattern) { return pattern.map!(map!(cell => cell ? narrowChar : ' ')).map!array.array; }
@@ -89,19 +92,85 @@ void learn(Image)(ref Font font, string variant, Image delegate(in char[] text, 
 		return true;
 	}
 
-	foreach (x0; 0 .. gridImage.w)
-		foreach (y0; 0 .. gridImage.h)
-			foreach (w; 1 .. (gridImage.w - x0 - 1) / (gridPatternW - 1) + 1)
-				foreach (h; 1 .. (gridImage.h - y0 - 1) / (gridPatternH - 1) + 1)
+	void trySpec(sizediff_t x0, sizediff_t y0, sizediff_t w, sizediff_t h)
+	{
+		auto spec = Spec(x0, y0, w, h, gridImage[x0, y0], gridImage[x0 + w, y0 + h]);
+		if (checkSpec(gridImage, spec, gridPattern))
+		{
+			stderr.writefln("monocre: Found grid: x=%d y=%d w=%d h=%d",
+				spec.x0, spec.y0, spec.w, spec.h);
+			specs ~= spec;
+		}
+	}
+
+	static if (is(Color == bool))
+	{
+		// Optimized version for 1-bit images.
+		// Note: faster algorithms exist, see e.g.:
+		// http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.45.581&rep=rep1&type=pdf
+
+		alias RowState = TypeForBits!gridPatternW;
+		alias State = RowState[gridPatternH.roundUpToPowerOfTwo];
+
+		State[2] soughtStates;
+		foreach (y; 0 .. gridPatternH)
+			foreach (x; 0 .. gridPatternW)
+				foreach (s; 0 .. 2)
 				{
-					auto spec = Spec(x0, y0, w, h, gridImage[x0, y0], gridImage[x0 + w, y0 + h]);
-					if (checkSpec(gridImage, spec, gridPattern))
-					{
-						stderr.writefln("monocre: Found grid: x=%d y=%d w=%d h=%d",
-							spec.x0, spec.y0, spec.w, spec.h);
-						specs ~= spec;
-					}
+					soughtStates[s][y] <<= 1;
+					soughtStates[s][y] |= gridPattern[y][x] ^ s;
 				}
+
+		RowState[] initialRowStates = new RowState[gridImage.h];
+
+		foreach (w; 1 .. gridImage.w / gridPatternW + 1)
+			foreach (h; 1 .. gridImage.h / gridPatternH + 1)
+				foreach (xp; 0 .. w) // Phase
+					foreach (yp; 0 .. h)
+					{
+						auto sliced = slice(gridImage, xp, yp, w, h);
+
+						// Prepare initial per-row states
+						foreach (y; 0 .. sliced.h)
+						{
+							RowState rs;
+							foreach (x; 0 .. gridPatternW)
+							{
+								rs <<= 1;
+								rs |= sliced[x, y];
+							}
+							initialRowStates[y] = rs;
+						}
+
+						foreach (y0; 0 .. sliced.h - gridPatternH + 1)
+						{
+							State state = initialRowStates[y0 .. y0 + gridPatternH];
+							if (state == soughtStates[0] || state == soughtStates[1])
+								trySpec(xp + 0 * w, yp + y0 * h, w, h);
+
+							foreach (x0; 1 .. sliced.w - gridPatternW)
+							{
+								foreach (y, ref row; state)
+								{
+									row <<= 1;
+									row |= sliced[x0 + gridPatternW - 1, y0 + y];
+									row &= (1 << gridPatternW) - 1;
+								}
+								if (state == soughtStates[0] || state == soughtStates[1])
+									trySpec(xp + x0 * w, yp + y0 * h, w, h);
+							}
+						}
+					}
+	}
+	else
+	{
+		// Slow generic version
+		foreach (x0; 0 .. gridImage.w)
+			foreach (y0; 0 .. gridImage.h)
+				foreach (w; 1 .. (gridImage.w - x0 - 1) / (gridPatternW - 1) + 1)
+					foreach (h; 1 .. (gridImage.h - y0 - 1) / (gridPatternH - 1) + 1)
+						trySpec(x0, y0, w, h);
+	}
 
 	enforce(specs.length, "Could not detect a character grid!");
 	foreach (spec; specs)
@@ -400,4 +469,26 @@ unittest
 		Font font;
 		learn(font, "", (in char[], bool) => viewBMP!bool((void[]).init), []);
 	}
+}
+
+/// Return a view of `src` with coordinates added and multiplied by a value.
+auto slice(V)(auto ref V src, xy_t x0, xy_t y0, xy_t dx, xy_t dy)
+{
+	static struct Sliced
+	{
+		xy_t x0, y0, dx, dy;
+		mixin Warp!V;
+
+		// E.g. src.w==21 x0==0 dx==5, w should be 5
+		// (x==0..4 translate to 0, 5, 10, 15, 20).
+		@property xy_t w() { return (src.w - x0 - 1) / dx + 1; }
+		@property xy_t h() { return (src.h - y0 - 1) / dy + 1; }
+
+		void warp(ref xy_t x, ref xy_t y)
+		{
+			x = x0 + dx * x;
+			y = y0 + dy * y;
+		}
+	}
+	return Sliced(x0, y0, dx, dy, src);
 }
