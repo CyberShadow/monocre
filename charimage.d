@@ -31,7 +31,7 @@ alias ParsedVariant(Variant) = TypeForBits!(EnumMembers!Variant.length);
 ParsedVariant!Variant parseVariant(Variant)(string str)
 if (is(Variant == enum))
 {
-	import std.algorithm.iteration : map, reduce;
+	import std.algorithm.iteration : map, fold;
 	import std.array : split;
 	import std.conv : to, ConvException;
 	import std.stdio : stderr;
@@ -53,7 +53,7 @@ if (is(Variant == enum))
 				}
 			}
 		)
-		.reduce!((a, b) => a |= b)
+		.fold!((a, b) => a |= b)(R(0))
 	);
 }
 
