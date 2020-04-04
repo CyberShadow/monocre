@@ -28,10 +28,8 @@ void outputSVG(in ref CharImage i, void delegate(string) sink)
 	auto svg = newXml().svg();
 	svg["xmlns"] = "http://www.w3.org/2000/svg";
 	svg["version"] = "1.1";
-	auto svgW = i.layers.map!(layer => layer.x0 + layer.w * layer.chars.map!(row => row.length).reduce!max).reduce!max;
-	auto svgH = i.layers.map!(layer => layer.y0 + layer.h * layer.chars.length                            ).reduce!max;
-	svg["width"] = svgW.text;
-	svg["height"] = svgH.text;
+	svg["width"] = i.w.text;
+	svg["height"] = i.h.text;
 
 	auto bg = svg.g();
 	auto fg = svg.g([

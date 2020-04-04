@@ -30,10 +30,11 @@ struct CharImage
 		bool opCast(T : bool)() const { return c != dchar.init; }
 	}
 
+	size_t w, h;
 	struct Layer
 	{
 		sizediff_t x0, y0;
-		size_t w, h;
+		size_t w, h; // font character size
 		Char[][] chars;
 	}
 	Layer[] layers;

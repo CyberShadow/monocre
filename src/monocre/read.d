@@ -127,6 +127,8 @@ CharImage read(Image)(Image image, in ref Font font)
 	enforce(bestScore, "No characters found!");
 
 	CharImage result;
+	result.w = image.w;
+	result.h = image.h;
 	result.layers = [bestLayer];
 	return result;
 }
