@@ -45,13 +45,13 @@ void learn(Image)(ref Font font, string variant, Image delegate(in char[] text, 
 	// - Ideally the pattern should fit in a machine word for quick search
 	enum gridPatternW = 1 + 6 + 1;
 	enum gridPatternH = 1 + 5 + 2;
-	auto gridPattern =
+	static immutable gridPattern =
 		gridPatternH.iota.map!(j =>
 			gridPatternW.iota.map!(i =>
 				i > 0 && i + 1 < gridPatternW && j > 0 && j + 2 < gridPatternH && (i + 1) != j
 			).array
 		).array;
-	dchar[][] patternLines(bool[][] pattern) { return pattern.map!(map!(cell => cell ? narrowChar : ' ')).map!array.array; }
+	dchar[][] patternLines(in bool[][] pattern) { return pattern.map!(map!(cell => cell ? narrowChar : ' ')).map!array.array; }
 	auto gridImage = patternLines(gridPattern)
 		.array
 		.I!render();
@@ -62,7 +62,7 @@ void learn(Image)(ref Font font, string variant, Image delegate(in char[] text, 
 		Color bg, fg;
 	}
 	Spec[] specs;
-	static bool checkSpec(ref Image image, ref Spec spec, bool[][] pattern)
+	static bool checkSpec(ref Image image, ref Spec spec, in bool[][] pattern)
 	{
 		auto patternW = pattern[0].length;
 		auto patternH = pattern   .length;
@@ -120,11 +120,14 @@ void learn(Image)(ref Font font, string variant, Image delegate(in char[] text, 
 				cs &= (1 << gridPatternH) - 1;
 		}
 
-		State[2] soughtStates;
-		foreach (y; 0 .. gridPatternH)
-			foreach (x; 0 .. gridPatternW)
-				foreach (s; 0 .. 2)
-					statePut!true(soughtStates[s][x], gridPattern[y][x] ^ !!s);
+		static immutable State[2] soughtStates = {
+			State[2] soughtStates;
+			foreach (y; 0 .. gridPatternH)
+				foreach (x; 0 .. gridPatternW)
+					foreach (s; 0 .. 2)
+						statePut!true(soughtStates[s][x], gridPattern[y][x] ^ !!s);
+			return soughtStates;
+		}();
 
 		auto maxW = gridImage.w / gridPatternW; // Inclusive
 		auto maxH = gridImage.h / gridPatternH;
