@@ -73,7 +73,7 @@ allowing to update the font with new glyphs.`)
 				if (parts[1].length)
 					list(start, end) = tuple(parse(parts[0]), parse(parts[2]));
 				else
-					start = end = parts[0].to!uint;
+					start = end = parse(parts[0]);
 				return iota(start, end + 1);
 			})
 			.joiner
