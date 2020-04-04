@@ -9,7 +9,7 @@ import std.stdio : stderr;
 
 import ae.utils.aa;
 import ae.utils.array;
-import ae.utils.math;
+import ae.utils.math : flipBits;
 
 import monocre.charimage;
 import monocre.font;
@@ -132,8 +132,8 @@ size_t getScore(in ref CharImage.Layer layer)
 	return layer.chars
 		.map!(line => line[])
 		.joiner
-		.map!(c => c.c == dchar.init ? 0 : c.bg == c.fg ? 1 : 100)
-		.walkLength;
+		.map!(c => !c ? 0 : c.bg == c.fg ? 1 : 100)
+		.sum;
 }
 
 unittest
