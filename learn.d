@@ -24,7 +24,7 @@ import ae.utils.graphics.view;
 import ae.utils.math;
 import ae.utils.meta : I;
 
-import font;
+import monocre.font;
 
 void learn(Image)(ref Font font, string variant, Image delegate(in char[] text, bool silent) renderer, dchar[] chars)
 {
