@@ -79,7 +79,7 @@ Re-running with `--output-format=svg` gives us a color SVG image:
 
 Notes:
 
-- monocre does not sent a font family or size in SVG/HTML output.
+- monocre does not set a font family or size in SVG/HTML output.
   Edit the output to set one which will look good in your use case.
 
 - ImageMagick miscalculates the image width in the above example,
